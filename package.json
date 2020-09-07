@@ -1,0 +1,19 @@
+{
+    "name": "elbil-ladestasjoner-plugin",
+    "version": "0.0.1",
+    "description": "Kart med ladestasjoner for lading av elbil",
+    "author": "Stein Inge Morisbak",
+    "license": "MIT",
+    "main": "pages/ChargingStations.tsx",
+    "repository": "git@github.com:steinim/hk-elbil-ladestasjoner-plugin.git",
+    "plugin": {
+        "name": "Ladestasjoner",
+        "icon": "https://cdn.mapmarker.io/api/v1/font-awesome/v5/pin?icon=fa-charging-station&size=50&hoffset=0&voffset=-1&background=009140",
+        "description": "Kart med ladestasjoner for lading av elbil"
+    },
+    "devDependencies": {},
+    "dependencies": {
+        "react-native-map-clustering": "^3.3.9",
+        "react-native-maps": "^0.27.1"
+    }
+}
