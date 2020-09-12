@@ -1,4 +1,5 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
+import { AsyncStorage } from 'react-native';
 
 const ChargingStationsContext = React.createContext({ });
 
@@ -7,16 +8,31 @@ interface Props {
 }
 
 export const ChargingStationsProvider = (props: Props) => {
+
+  const [chargingStationsState, setChargingStationsState] = useState([]);
+
   const chargingStations = () => {
-    return {};
+    return chargingStationsState;
   };
 
+  const setChargingStations = (stations) => {
+    const _storeData = async (c) => {
+      try {
+        await AsyncStorage.setItem('chargingStationsState', JSON.stringify(c));
+      } catch (error) {
+        console.log('save error', error);
+      }
+    };
+    _storeData(stations);
+    setChargingStationsState(stations);
+  };
 
   const value = useMemo(() => {
     return {
       chargingStations,
+      setChargingStations,
     };
-  }, [chargingStations]);
+  }, [chargingStationsState]);
 
   return (
     <ChargingStationsContext.Provider value={value}>

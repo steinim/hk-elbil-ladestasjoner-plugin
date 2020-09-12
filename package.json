@@ -12,8 +12,5 @@
         "description": "Kart med ladestasjoner for lading av elbil"
     },
     "devDependencies": {},
-    "dependencies": {
-        "react-native-map-clustering": "^3.3.9",
-        "react-native-maps": "^0.27.1"
-    }
+    "dependencies": {}
 }
