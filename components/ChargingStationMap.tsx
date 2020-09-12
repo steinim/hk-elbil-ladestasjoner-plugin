@@ -1,21 +1,47 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Dimensions, StyleSheet } from 'react-native';
+import { Platform, Dimensions, StyleSheet, Image } from 'react-native';
 import { View } from 'native-base';
 import MapView from 'react-native-map-clustering';
 import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { ChargingStationsContext, useChargingStations } from '../ChargingStationsProvider';
 import axios from 'axios';
+import { PERMISSIONS, request } from 'react-native-permissions';
 import Geolocation from '@react-native-community/geolocation';
 
 export const ChargingStationMap = (): JSX.Element => {
+  const latitudeDelta = 0.05;
+  const longitudeDelta = 0.05;
   const { chargingStations, setChargingStations } = useChargingStations();
   const [isMapReady, setIsMapReady] = useState(false);
   const [region, setRegion] = useState({
     latitude: 59.396173,
     longitude: 5.2929257,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
-});
+    latitudeDelta: latitudeDelta,
+    longitudeDelta: longitudeDelta,
+  });
+  try {
+    request(
+        Platform.select({
+          android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
+          ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+        })
+      ).then(res => {
+        if (res === 'granted') {
+          Geolocation.getCurrentPosition(info => {
+            setRegion({
+              latitude: info.coords.latitude,
+              longitude: info.coords.longitude,
+              latitudeDelta: latitudeDelta,
+              longitudeDelta: longitudeDelta,
+            });
+          });
+        } else {
+          console.log('Location is not enabled');
+        }
+      });
+    } catch (error) {
+      console.log('location set error:', error);
+    }
   let mapRef = useRef(null);
 
   const fetchChargingStations = async () => {
@@ -84,18 +110,6 @@ export const ChargingStationMap = (): JSX.Element => {
   };
 
   const animateToRegion = () => {
-    const currentLocation = Geolocation.getCurrentPosition(info => {
-      return {
-        latitude: info.coords.latitude,
-        longitude: info.coords.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      };
-    });
-    console.log('Current is:', Geolocation.getCurrentPosition(info => {
-      return info;
-    }));
-    // console.log(currentLocation);
     mapRef.current.animateToRegion(region, 1000);
   };
 
@@ -108,7 +122,7 @@ export const ChargingStationMap = (): JSX.Element => {
   }, []);
 
   useEffect(() => {
-    animateToRegion(); // cool effect to use for later
+    // animateToRegion(); // cool effect to use for later
 },
 [region]);
 
@@ -123,16 +137,34 @@ export const ChargingStationMap = (): JSX.Element => {
                    initialRegion={region}
                    onRegionChangeComplete={(selectedRegion) => onRegionChangeComplete(selectedRegion)}
           >
-           {chargingStations().data &&
+           { isMapReady &&
+              chargingStations().data &&
               chargingStations().data.length > 0 &&
               chargingStations().data.map((item) => (
-                <Marker coordinate={{ latitude: item.latitude, longitude: item.longitude }} image={require('../assets/pin.png')} />
-              ))}
+                <Marker key={item.id}
+                        coordinate={{ latitude: item.latitude, longitude: item.longitude }}
+                        title={item.name}
+                        description={item.description_of_location}
+                        >
+                  <Image source={require('../assets/ev-charger-pin.png')}
+                         style={{width: 36, height: 36}}
+                         resizeMode="contain"/>
+                </Marker>
+              ))
+              }
+              <Marker key={Number()}
+                      coordinate={region}
+                      title="Din posisjon"
+                      description="Naviger i kartet for å finne ladestasjoner">
+              <Image source={require('../assets/car-pin.png')}
+                     style={{width: 36, height: 50}}
+                     resizeMode="contain"/>
+              </Marker>
           </MapView>
         </View>
       )}
     </ChargingStationsContext.Consumer>
   );
 };
-
+// {require('../assets/car-pin.png')}
 export default ChargingStationMap;
