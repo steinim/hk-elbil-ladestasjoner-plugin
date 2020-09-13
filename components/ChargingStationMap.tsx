@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, Dimensions, StyleSheet, Image } from 'react-native';
+import { Platform, Dimensions, StyleSheet, Image, Modal, Text } from 'react-native';
 import { View } from 'native-base';
 import MapView from 'react-native-map-clustering';
 import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { ChargingStationsContext, useChargingStations } from '../ChargingStationsProvider';
+import ChargingStationModal from '../components/ChargingStationModal';
 import axios from 'axios';
 import { PERMISSIONS, request } from 'react-native-permissions';
 import Geolocation from '@react-native-community/geolocation';
@@ -11,7 +12,8 @@ import Geolocation from '@react-native-community/geolocation';
 export const ChargingStationMap = (): JSX.Element => {
   const latitudeDelta = 0.05;
   const longitudeDelta = 0.05;
-  const { chargingStations, setChargingStations } = useChargingStations();
+  const { chargingStations, setChargingStations, currentStation, setCurrentStation } = useChargingStations();
+  const chargingStationModalRef = useRef(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [region, setRegion] = useState({
     latitude: 59.396173,
@@ -109,8 +111,9 @@ export const ChargingStationMap = (): JSX.Element => {
     }
   };
 
-  const animateToRegion = () => {
-    mapRef.current.animateToRegion(region, 1000);
+  const openModal = (station) => {
+    setCurrentStation(station);
+    chargingStationModalRef.current.open();
   };
 
   useEffect(() => {
@@ -121,10 +124,15 @@ export const ChargingStationMap = (): JSX.Element => {
     fetchChargingStations();
   }, []);
 
-  useEffect(() => {
-    // animateToRegion(); // cool effect to use for later
-},
-[region]);
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    width: 300,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+});
 
   return (
     <ChargingStationsContext.Consumer>
@@ -136,6 +144,7 @@ export const ChargingStationMap = (): JSX.Element => {
                    onMapReady={onMapReady}
                    initialRegion={region}
                    onRegionChangeComplete={(selectedRegion) => onRegionChangeComplete(selectedRegion)}
+                   showsUserLocation={true}
           >
            { isMapReady &&
               chargingStations().data &&
@@ -143,28 +152,22 @@ export const ChargingStationMap = (): JSX.Element => {
               chargingStations().data.map((item) => (
                 <Marker key={item.id}
                         coordinate={{ latitude: item.latitude, longitude: item.longitude }}
-                        title={item.name}
-                        description={item.description_of_location}
+                        // title={item.name}
+                        // description={item.description_of_location}
+                        onPress={ () => openModal(item)}
                         >
                   <Image source={require('../assets/ev-charger-pin.png')}
                          style={{width: 36, height: 36}}
                          resizeMode="contain"/>
-                </Marker>
+              </Marker>
               ))
               }
-              <Marker key={Number()}
-                      coordinate={region}
-                      title="Din posisjon"
-                      description="Naviger i kartet for å finne ladestasjoner">
-              <Image source={require('../assets/car-pin.png')}
-                     style={{width: 36, height: 50}}
-                     resizeMode="contain"/>
-              </Marker>
           </MapView>
+          <ChargingStationModal ref={chargingStationModalRef}></ChargingStationModal>
         </View>
       )}
     </ChargingStationsContext.Consumer>
   );
 };
-// {require('../assets/car-pin.png')}
+
 export default ChargingStationMap;

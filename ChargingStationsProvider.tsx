@@ -10,6 +10,7 @@ interface Props {
 export const ChargingStationsProvider = (props: Props) => {
 
   const [chargingStationsState, setChargingStationsState] = useState([]);
+  const [currentStationState, setCurrentStationState] = useState([]);
 
   const chargingStations = () => {
     return chargingStationsState;
@@ -27,12 +28,30 @@ export const ChargingStationsProvider = (props: Props) => {
     setChargingStationsState(stations);
   };
 
+  const currentStation = () => {
+    return currentStationState;
+  };
+
+  const setCurrentStation = (station) => {
+    const _storeData = async (c) => {
+      try {
+        await AsyncStorage.setItem('currentStationState', JSON.stringify(c));
+      } catch (error) {
+        console.log('save error', error);
+      }
+    };
+    _storeData(station);
+    setCurrentStationState(station);
+  };
+
   const value = useMemo(() => {
     return {
       chargingStations,
       setChargingStations,
+      currentStation,
+      setCurrentStation,
     };
-  }, [chargingStationsState]);
+  }, [chargingStationsState, currentStationState]);
 
   return (
     <ChargingStationsContext.Provider value={value}>
