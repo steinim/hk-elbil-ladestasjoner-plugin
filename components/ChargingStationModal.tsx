@@ -79,19 +79,19 @@ const ChargingStationModal = React.forwardRef((props: Props, ref: any) => {
       }
       onClose={() => onClose?.()}
       >
-            <Text
+            <Text key="name"
               style={[typography.textBold, styles.header]}>
               {currentStation().name}
             </Text>
-            <Text style={[typography.textCenter, typography.textSmall]}>
+            <Text key="address" style={[typography.textCenter, typography.textSmall]}>
              {currentStation().street} {currentStation().house_number}, {currentStation().zipcode} {currentStation().city}
             </Text>
-            <Text style={[typography.textSmall, typography.textCenter, styles.link]}
+            <Text key="map" style={[typography.textSmall, typography.textCenter, styles.link]}
                         // tslint:disable-next-line: max-line-length
                         onPress={() => Linking.openURL('https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=' + currentStation().latitude + ',' + currentStation().longitude)} >
                         &nbsp;Vis i kart
             </Text>
-            <Text style={[typography.textBold, typography.textCenter, styles.subheader]}>
+            <Text key="number_charging_points" style={[typography.textBold, typography.textCenter, styles.subheader]}>
               Antall ladepunkter: {currentStation().number_charging_points}{'\n'}
             </Text>
             <View style={{ borderBottomColor: 'black', borderBottomWidth: 1 }}/>
@@ -102,29 +102,29 @@ const ChargingStationModal = React.forwardRef((props: Props, ref: any) => {
                     <List>
                       <Text key={key + '-lader'} style={[typography.textBold, styles.listheader]}>Lader nr. {key + 1}</Text>
                     {item.map((item2, key2) => (
-                      <ListItem key={key2 + 'lader-attributter' + key} style={styles.listitems}>
-                          <Text>{item2.attrname}: {item2.trans}</Text>
+                      <ListItem key={key2 + 'attributt-liste' + key} style={styles.listitems}>
+                          <Text key={key2 + 'lader-attributt' + key}>{item2.attrname}: {item2.trans}</Text>
                       </ListItem>
                     ))}
                     <View style={{ borderBottomColor: 'black', borderBottomWidth: 1 }}/>
                     </List>
             ))}
             {currentStation().description_of_location
-              ? <Text style={[typography.textCenter, styles.footer]}>
-                  <Text style={typography.textBold}>Beskrivelse av stedet:{'\n'}</Text>
-                  <Text>{currentStation().description_of_location}</Text>
+              ? <Text key="footer" style={[typography.textCenter, styles.footer]}>
+                  <Text key="desc-text" style={typography.textBold}>Beskrivelse av stedet:{'\n'}</Text>
+                  <Text key="desc">{currentStation().description_of_location}</Text>
                 </Text>
-              : <Text></Text>
+              : <Text key="empty"></Text>
             }
             {currentStation().user_comment
-              ? <Text style={[typography.textCenter, styles.footer]}>
-                  <Text style={typography.textBold}>Brukerkommentarer:{'\n'}</Text>
-                  <Text>{currentStation().user_comment}</Text>
+              ? <Text key="footer2" style={[typography.textCenter, styles.footer]}>
+                  <Text key="comment-text" style={typography.textBold}>Brukerkommentarer:{'\n'}</Text>
+                  <Text key="comment">{currentStation().user_comment}</Text>
                 </Text>
-              : <Text></Text>
+              : <Text key="empty2"></Text>
             }
             {currentStation().owned_by &&
-              <Text style={[typography.textCenter, styles.footer]}>Ladestasjonen eies av {currentStation().owned_by}</Text>
+              <Text key="ownership" style={[typography.textCenter, styles.footer]}>Ladestasjonen eies av {currentStation().owned_by}</Text>
             }
         </Modalize>
       )}
