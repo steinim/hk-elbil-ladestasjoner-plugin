@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, Dimensions, StyleSheet, Image, Modal, Text } from 'react-native';
-import { View } from 'native-base';
+import { Platform, Dimensions, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { View, Text } from 'native-base';
 import MapView from 'react-native-map-clustering';
 import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { ChargingStationsContext, useChargingStations } from '../ChargingStationsProvider';
@@ -8,45 +8,21 @@ import ChargingStationModal from '../components/ChargingStationModal';
 import axios from 'axios';
 import { PERMISSIONS, request } from 'react-native-permissions';
 import Geolocation from '@react-native-community/geolocation';
+import variable from '../../../native-base-theme/variables/material';
+import { typography } from 'styles';
 
 export const ChargingStationMap = (): JSX.Element => {
   const latitudeDelta = 0.05;
   const longitudeDelta = 0.05;
-  const { chargingStations, setChargingStations, currentStation, setCurrentStation } = useChargingStations();
+  const { chargingStations, setChargingStations, currentStation, setCurrentStation, setCurrentConnectors } = useChargingStations();
   const chargingStationModalRef = useRef(null);
   const [isMapReady, setIsMapReady] = useState(false);
-  const [region, setRegion] = useState({
-    latitude: 59.396173,
-    longitude: 5.2929257,
-    latitudeDelta: latitudeDelta,
-    longitudeDelta: longitudeDelta,
-  });
-  try {
-    request(
-        Platform.select({
-          android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
-          ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
-        })
-      ).then(res => {
-        if (res === 'granted') {
-          Geolocation.getCurrentPosition(info => {
-            setRegion({
-              latitude: info.coords.latitude,
-              longitude: info.coords.longitude,
-              latitudeDelta: latitudeDelta,
-              longitudeDelta: longitudeDelta,
-            });
-          });
-        } else {
-          console.log('Location is not enabled');
-        }
-      });
-    } catch (error) {
-      console.log('location set error:', error);
-    }
+  const [fetching, setShouldFetch] = useState(false);
+
   let mapRef = useRef(null);
 
   const fetchChargingStations = async () => {
+    setShouldFetch(true);
     let fetchUrl = 'https://nobil-proxy.hkraft.dev';
 
     axios
@@ -87,22 +63,54 @@ export const ChargingStationMap = (): JSX.Element => {
             image: item.csmd.Image,
             created: item.csmd.Created,
             updated: item.csmd.Updated,
+            station: item.attr.st,
+            connectors: item.attr.conn,
           };
         });
         let chargers = {
           timestamp: new Date(),
           data: locations,
         };
-        // console.log(chargers);
         setChargingStations(chargers);
+        setShouldFetch(false);
       })
       .catch((err) => {
         console.log('error fetching charging stations', err);
       });
   };
 
-  const onRegionChangeComplete = (selectedRegion) => {
-    setRegion(selectedRegion);
+  const getInitialRegion = () => {
+    let initialRegion = {
+      latitude: 59.396173,
+      longitude: 5.2929257,
+      latitudeDelta: latitudeDelta,
+      longitudeDelta: longitudeDelta,
+    };
+    try {
+      request(
+          Platform.select({
+            android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
+            ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+          })
+        ).then(res => {
+          if (res === 'granted') {
+            Geolocation.getCurrentPosition(info => {
+              initialRegion = {
+                latitude: info.coords.latitude,
+                longitude: info.coords.longitude,
+                latitudeDelta: latitudeDelta,
+                longitudeDelta: longitudeDelta,
+              };
+            });
+          } else {
+            console.log('Location is not enabled');
+          }
+        });
+      } catch (error) {
+        console.log('location set error:', error);
+        return initialRegion;
+      }
+    return initialRegion;
   };
 
   const onMapReady = () => {
@@ -111,8 +119,18 @@ export const ChargingStationMap = (): JSX.Element => {
     }
   };
 
+  const getObjValues = (e) => {
+    let firstResult = Object.keys(e).map(k => e[k]);
+    let result = [];
+    for (let i = 0; i < firstResult.length; i++) {
+      result.push(Object.keys(firstResult[0]).map(k => firstResult[0][k]));
+  }
+    return result;
+  };
+
   const openModal = (station) => {
     setCurrentStation(station);
+    setCurrentConnectors(getObjValues(station.connectors));
     chargingStationModalRef.current.open();
   };
 
@@ -120,30 +138,41 @@ export const ChargingStationMap = (): JSX.Element => {
     const lastTenMinutes = new Date();
     if (!chargingStations().timestamp || chargingStations().timestamp < lastTenMinutes) {
       lastTenMinutes.setHours(lastTenMinutes.getMinutes() - 10);
+      fetchChargingStations();
     }
-    fetchChargingStations();
   }, []);
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    width: 300,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-  },
-});
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      justifyContent: 'center',
+      width: 300,
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+    },
+    loading: {
+      justifyContent: 'center',
+      alignSelf: 'center',
+    },
+  });
 
   return (
     <ChargingStationsContext.Consumer>
       {() => (
         <View style={StyleSheet.absoluteFillObject}>
+        <ChargingStationModal ref={chargingStationModalRef}></ChargingStationModal>
+        {fetching &&
+          <View style={styles.loading}>
+            <Text>{'\n'}</Text>
+            <ActivityIndicator size = "large" color = {variable.kraftCyan}/>
+            <Text style={[typography.textLight]}>{'\n'}Leter etter ladestasjoner...</Text>
+          </View>
+          }
           <MapView ref={mapRef}
                    provider={PROVIDER_GOOGLE}
                    style={{width: Dimensions.get('window').width, height: Dimensions.get('window').height }}
                    onMapReady={onMapReady}
-                   initialRegion={region}
-                   onRegionChangeComplete={(selectedRegion) => onRegionChangeComplete(selectedRegion)}
+                   initialRegion={getInitialRegion()}
                    showsUserLocation={true}
           >
            { isMapReady &&
@@ -163,7 +192,6 @@ const styles = StyleSheet.create({
               ))
               }
           </MapView>
-          <ChargingStationModal ref={chargingStationModalRef}></ChargingStationModal>
         </View>
       )}
     </ChargingStationsContext.Consumer>
