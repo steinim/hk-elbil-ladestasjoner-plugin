@@ -9,34 +9,54 @@ import axios from 'axios';
 import { PERMISSIONS, request } from 'react-native-permissions';
 import Geolocation from '@react-native-community/geolocation';
 import variable from '../../../native-base-theme/variables/material';
-import { typography } from 'styles';
+
 
 export const ChargingStationMap = (): JSX.Element => {
   const latitudeDelta = 0.05;
   const longitudeDelta = 0.05;
-  const { chargingStations, setChargingStations, currentStation, setCurrentStation, setCurrentConnectors } = useChargingStations();
+  let initialRegion = {
+    latitude: 59.396173,
+    longitude: 5.2929257,
+    latitudeDelta: latitudeDelta,
+    longitudeDelta: longitudeDelta,
+  };
+  const NORDEN = 3600000;
+  const { chargingStations, setChargingStations, setCurrentStation, setCurrentConnectors, setCurrentRegion, currentRegion } = useChargingStations();
   const chargingStationModalRef = useRef(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [fetching, setShouldFetch] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
-  let mapRef = useRef(null);
+  let mapRef = useRef<MapView>(null);
 
-  const fetchChargingStations = async () => {
+  const fetchChargingStations = async (region, distance) => {
     setShouldFetch(true);
     let fetchUrl = 'https://nobil-proxy.hkraft.dev';
 
-    axios
+    let stationArray = [];
+    let prefetchedStations = [];
+    if (chargingStations() && chargingStations().data) {
+      prefetchedStations = chargingStations().data;
+      prefetchedStations.forEach(station => {
+        stationArray.push(station.id);
+      });
+    }
+
+    await axios
       .get(fetchUrl, {
         headers: {
           accept: `application/json`,
         },
         params: {
-          limit: 300,
-          distance: 30000,
+          limit: 4000,
+          distance: distance,
+          lat: region.latitude,
+          long: region.longitude,
+          existingids: stationArray.join(','),
         },
       })
       .then((e) => {
-        let locations = e.data.map((item) => {
+        let fetchedStations = e.data.map((item) => {
           return {
             id: item.csmd.id,
             name: item.csmd.name,
@@ -67,11 +87,11 @@ export const ChargingStationMap = (): JSX.Element => {
             connectors: item.attr.conn,
           };
         });
-        let chargers = {
+        let stations = {
           timestamp: new Date(),
-          data: locations,
+          data: fetchedStations.concat(prefetchedStations),
         };
-        setChargingStations(chargers);
+        setChargingStations(stations);
         setShouldFetch(false);
       })
       .catch((err) => {
@@ -79,13 +99,19 @@ export const ChargingStationMap = (): JSX.Element => {
       });
   };
 
+  const getCurrentPosition = () => {
+    Geolocation.getCurrentPosition(info => {
+      initialRegion = {
+        latitude: info.coords.latitude,
+        longitude: info.coords.longitude,
+        latitudeDelta: latitudeDelta,
+        longitudeDelta: longitudeDelta,
+      };
+    });
+    return initialRegion;
+  };
+
   const getInitialRegion = () => {
-    let initialRegion = {
-      latitude: 59.396173,
-      longitude: 5.2929257,
-      latitudeDelta: latitudeDelta,
-      longitudeDelta: longitudeDelta,
-    };
     try {
       request(
           Platform.select({
@@ -94,14 +120,7 @@ export const ChargingStationMap = (): JSX.Element => {
           })
         ).then(res => {
           if (res === 'granted') {
-            Geolocation.getCurrentPosition(info => {
-              initialRegion = {
-                latitude: info.coords.latitude,
-                longitude: info.coords.longitude,
-                latitudeDelta: latitudeDelta,
-                longitudeDelta: longitudeDelta,
-              };
-            });
+            getCurrentPosition();
           } else {
             console.log('Location is not enabled');
           }
@@ -113,9 +132,29 @@ export const ChargingStationMap = (): JSX.Element => {
     return initialRegion;
   };
 
+  const getDistance = (region) => {
+    let largestDelta = Math.max(region.latitudeDelta, region.longitudeDelta);
+    // 1 degree is equal to approx 112000 meters
+    let distance = largestDelta * 112000;
+    if (distance > NORDEN) {
+      return NORDEN;
+    } else {
+      return Math.round(distance);
+    }
+  };
+
+  const updateCurrentRegion = (region) => {
+    // check if region is smaller
+    // in that case du not fetch
+    setCurrentRegion(region);
+    let distance = getDistance(region);
+    setTimeout(() => {  fetchChargingStations(region, distance); }, 2000);
+  };
+
   const onMapReady = () => {
     if (!isMapReady) {
         setIsMapReady(true);
+        setInitialized(true);
     }
   };
 
@@ -138,7 +177,9 @@ export const ChargingStationMap = (): JSX.Element => {
     const lastTenMinutes = new Date();
     if (!chargingStations().timestamp || chargingStations().timestamp < lastTenMinutes) {
       lastTenMinutes.setHours(lastTenMinutes.getMinutes() - 10);
-      fetchChargingStations();
+      let region = currentRegion();
+      let distance = getDistance(region);
+      fetchChargingStations(region, distance);
     }
   }, []);
 
@@ -153,6 +194,12 @@ export const ChargingStationMap = (): JSX.Element => {
     loading: {
       justifyContent: 'center',
       alignSelf: 'center',
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      position: 'absolute',
+      zIndex: 20,
     },
   });
 
@@ -161,19 +208,16 @@ export const ChargingStationMap = (): JSX.Element => {
       {() => (
         <View style={StyleSheet.absoluteFillObject}>
         <ChargingStationModal ref={chargingStationModalRef}></ChargingStationModal>
-        {fetching &&
-          <View style={styles.loading}>
-            <Text>{'\n'}</Text>
-            <ActivityIndicator size = "large" color = {variable.kraftCyan}/>
-            <Text style={[typography.textLight]}>{'\n'}Leter etter ladestasjoner...</Text>
-          </View>
-          }
           <MapView ref={mapRef}
                    provider={PROVIDER_GOOGLE}
                    style={{width: Dimensions.get('window').width, height: Dimensions.get('window').height }}
                    onMapReady={onMapReady}
                    initialRegion={getInitialRegion()}
+                   onRegionChangeComplete={region => updateCurrentRegion(region)}
                    showsUserLocation={true}
+                   minZoomLevel={0}
+                   maxZoomLevel={20}
+                   rotateEnabled={false}
           >
            { isMapReady &&
               chargingStations().data &&
@@ -183,6 +227,7 @@ export const ChargingStationMap = (): JSX.Element => {
                         coordinate={{ latitude: item.latitude, longitude: item.longitude }}
                         // title={item.name}
                         // description={item.description_of_location}
+                        tracksViewChanges={!initialized}
                         onPress={ () => openModal(item)}
                         >
                   <Image source={require('../assets/ev-charger-pin.png')}
@@ -192,6 +237,13 @@ export const ChargingStationMap = (): JSX.Element => {
               ))
               }
           </MapView>
+          {fetching &&
+          <View style={styles.loading}>
+            <Text>{'\n'}</Text>
+            <ActivityIndicator size="large" color = {variable.kraftCyan}/>
+            {/* <Text style={[typography.textLight]}>{'\n'}Leter etter ladestasjoner...</Text> */}
+          </View>
+          }
         </View>
       )}
     </ChargingStationsContext.Consumer>
