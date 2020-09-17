@@ -1,3 +1,3 @@
-# Badetass plugin for Haugaland Kraft Mitt Hjem
+# Elbil ladestasjonplugin for Haugaland Kraft Mitt Hjem
 
-Viser badetemperaturer fra https://badetassen.no
+Kart over elbil ladestasjoner
