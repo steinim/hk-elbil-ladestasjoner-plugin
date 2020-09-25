@@ -2,12 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Dimensions, StyleSheet, Image, ActivityIndicator } from 'react-native';
 import { View, Text } from 'native-base';
 import MapView from 'react-native-map-clustering';
-import { Region, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { ChargingStationsContext, useChargingStations } from '../ChargingStationsProvider';
 import ChargingStationModal from '../components/ChargingStationModal';
 import axios from 'axios';
-import variable from '../../../native-base-theme/variables/material';
-import { getInstallationsAction } from 'tests';
 
 export const ChargingStationMap = (): JSX.Element => {
 
